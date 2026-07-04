@@ -18,6 +18,7 @@ Design notes:
 
 from __future__ import annotations
 
+from collections import Counter
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
 
@@ -29,7 +30,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.models import Claim, Customer, Policy
-from app.services import csv_cleaner
+from app.services import business_rules, csv_cleaner
 from app.services.data_validator import (
     is_missing,
     make_error,
@@ -109,6 +110,16 @@ def _as_date(row: pd.Series, key: str):
         return None
     try:
         return pd.Timestamp(value).date()
+    except (ValueError, TypeError):
+        return None
+
+
+def _as_int(row: pd.Series, key: str) -> int | None:
+    value = _get(row, key)
+    if value is None:
+        return None
+    try:
+        return int(float(value))
     except (ValueError, TypeError):
         return None
 
@@ -217,12 +228,19 @@ def _insert_entity(
     parent_ids: set[str] | None = None,
     parent_column: str | None = None,
     parent_reason: str | None = None,
+    evaluate: Callable[[pd.Series, Any], list[str]] | None = None,
 ) -> dict[str, int]:
     """Insert all rows of one entity, rejecting bad rows individually.
 
     Returns a `{total, inserted, rejected}` counter dict and appends any row
     errors to `errors`. `existing_ids` is updated with successfully inserted
     business ids so later entities can validate their foreign keys against it.
+
+    `evaluate`, when supplied, is a hook run after the row's model object is
+    built. It may (a) return a non-empty list of error strings to reject the
+    row, and/or (b) mutate the built object (e.g. set computed business-rule
+    fields such as payout/fraud). This keeps business logic out of this generic
+    loop while still applying it before insertion.
     """
     total = len(df)
     inserted = 0
@@ -249,9 +267,22 @@ def _insert_entity(
                 errors.append(make_error(filename, line, parent_reason or "Parent not found"))
                 continue
 
-        # Persist the row inside its own savepoint so a failure is isolated.
+        # Build the model object (pure mapping).
         try:
             obj = builder(row)
+        except Exception:  # noqa: BLE001 - a malformed row must not crash the run.
+            errors.append(make_error(filename, line, "Could not build record from row"))
+            continue
+
+        # Apply business rules / enrichment. Non-empty result rejects the row.
+        if evaluate is not None:
+            problems = evaluate(row, obj)
+            if problems:
+                errors.append(make_error(filename, line, problems[0]))
+                continue
+
+        # Persist the row inside its own savepoint so a failure is isolated.
+        try:
             with db.begin_nested():
                 db.add(obj)
                 db.flush()
@@ -277,6 +308,80 @@ def _insert_entity(
 def _load_existing_ids(db: Session, column) -> set[str]:
     """Fetch the set of already-present business ids for one column."""
     return {value for (value,) in db.execute(select(column)).all() if value is not None}
+
+
+# --------------------------------------------------------------------------- #
+# Business-rule context assembly (lookups derived from the uploaded frames).   #
+# --------------------------------------------------------------------------- #
+
+def _build_policy_lookups(
+    policies_df: pd.DataFrame,
+) -> tuple[dict[str, str | None], dict[str, Any], dict[str, Decimal | None]]:
+    """Map policy_id -> (customer_id, issue_date, coverage_limit)."""
+    customer_of: dict[str, str | None] = {}
+    issue_date_of: dict[str, Any] = {}
+    coverage_of: dict[str, Decimal | None] = {}
+    for _, row in policies_df.iterrows():
+        policy_id = _as_str(row, "policy_id")
+        if policy_id is None:
+            continue
+        customer_of[policy_id] = _as_str(row, "customer_id")
+        issue_date_of[policy_id] = _as_date(row, "issue_date")
+        coverage_of[policy_id] = _as_decimal(row, "coverage_limit")
+    return customer_of, issue_date_of, coverage_of
+
+
+def _build_customer_lookups(
+    customers_df: pd.DataFrame,
+) -> tuple[dict[str, int | None], dict[str, str | None]]:
+    """Map customer_id -> (age, state) for the minor and CA-flood rules."""
+    age_of: dict[str, int | None] = {}
+    state_of: dict[str, str | None] = {}
+    for _, row in customers_df.iterrows():
+        customer_id = _as_str(row, "customer_id")
+        if customer_id is None:
+            continue
+        age_of[customer_id] = _as_int(row, "age")
+        state_of[customer_id] = _as_str(row, "state")
+    return age_of, state_of
+
+
+def _count_claims_per_customer(
+    claims_df: pd.DataFrame, policy_customer: dict[str, str | None]
+) -> Counter:
+    """Count claims per owning customer (for the fraud rule)."""
+    counts: Counter = Counter()
+    for _, row in claims_df.iterrows():
+        policy_id = _as_str(row, "policy_id")
+        customer_id = policy_customer.get(policy_id)
+        if customer_id:
+            counts[customer_id] += 1
+    return counts
+
+
+def _claim_context(
+    row: pd.Series,
+    policy_customer: dict[str, str | None],
+    policy_issue: dict[str, Any],
+    policy_coverage: dict[str, Decimal | None],
+    customer_age: dict[str, int | None],
+    customer_state: dict[str, str | None],
+    claim_counts: Counter,
+) -> business_rules.ClaimContext:
+    """Assemble the business-rule context for a single claim row."""
+    policy_id = _as_str(row, "policy_id")
+    customer_id = policy_customer.get(policy_id)
+    return business_rules.ClaimContext(
+        loss_amount=_as_decimal(row, "loss_amount"),
+        loss_date=_as_date(row, "loss_date"),
+        claim_date=_as_date(row, "claim_date"),
+        policy_issue_date=policy_issue.get(policy_id),
+        coverage_limit=policy_coverage.get(policy_id),
+        customer_age=customer_age.get(customer_id),
+        customer_state=customer_state.get(customer_id),
+        cause=_as_str(row, "cause"),
+        customer_claim_count=claim_counts.get(customer_id, 0),
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -340,12 +445,31 @@ def process_upload(
         )
         db.commit()
 
+        # Assemble the business-rule context, then evaluate each claim (validate
+        # + compute payout_amount and fraud_flag) before it is inserted.
+        policy_customer, policy_issue, policy_coverage = _build_policy_lookups(policies_df)
+        customer_age, customer_state = _build_customer_lookups(customers_df)
+        claim_counts = _count_claims_per_customer(claims_df, policy_customer)
+
+        def _evaluate_claim_row(row: pd.Series, claim: Claim) -> list[str]:
+            ctx = _claim_context(
+                row, policy_customer, policy_issue, policy_coverage,
+                customer_age, customer_state, claim_counts,
+            )
+            result = business_rules.evaluate_claim(ctx)
+            if not result.valid:
+                return result.errors
+            claim.payout_amount = result.payout_amount
+            claim.fraud_flag = result.fraud_flag
+            return []
+
         claim_summary = _insert_entity(
             db, claims_df,
             filename="claims.csv", id_column="claim_id",
             builder=_build_claim, existing_ids=existing_claim_ids, errors=errors,
             parent_ids=existing_policy_ids, parent_column="policy_id",
             parent_reason="Policy not found",
+            evaluate=_evaluate_claim_row,
         )
         db.commit()
     except SQLAlchemyError:
