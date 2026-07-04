@@ -249,6 +249,9 @@ The API will be available at <http://localhost:8000>.
   datasets); `claim_date` is nullable.
 - Monetary values are serialised as JSON strings (`Decimal`) to preserve precision.
 - Exact-duplicate CSV rows are silently de-duplicated and excluded from totals.
+- Dates are parsed by pandas, whose nanosecond `Timestamp` supports roughly
+  `1677`–`2262`; dates outside that range are coerced to null. Realistic
+  future dates are still rejected by the business rule (verified with `2027`/`2030`).
 
 ## Future improvements
 
