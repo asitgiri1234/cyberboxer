@@ -18,7 +18,7 @@ from fastapi import FastAPI
 
 from app.config import settings
 from app.database import create_tables
-from app.routes import health
+from app.routes import health, upload
 from app.utils.logger import setup_logging
 
 # Configure logging once, at import time, so every module that grabs a logger
@@ -60,3 +60,4 @@ app = FastAPI(
 # Register routers. Each domain gets mounted here; keeping this list short and
 # explicit makes it obvious what the API exposes.
 app.include_router(health.router)
+app.include_router(upload.router)
