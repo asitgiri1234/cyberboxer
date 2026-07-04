@@ -4,19 +4,18 @@ tests.conftest
 Shared pytest fixtures.
 
 Tests run WITHOUT a real database: the settings point at an unused in-memory
-SQLite URL (the engine is created lazily and never connected), auto table
-creation is disabled, and the `get_db` dependency is overridden with a
-`MagicMock` session. Service functions are monkeypatched per test where a
-query result is needed. This keeps the suite fast, hermetic and CI-friendly.
+SQLite URL (the engine is created lazily and never connected) and the `get_db`
+dependency is overridden with a `MagicMock` session. Service functions are
+monkeypatched per test where a query result is needed. This keeps the suite
+fast, hermetic and CI-friendly.
 """
 
 from __future__ import annotations
 
 import os
 
-# These MUST be set before `app` (and therefore `app.config`) is imported.
+# This MUST be set before `app` (and therefore `app.config`) is imported.
 os.environ["DATABASE_URL"] = "sqlite+pysqlite:///:memory:"
-os.environ["AUTO_CREATE_TABLES"] = "false"
 
 from unittest.mock import MagicMock  # noqa: E402
 

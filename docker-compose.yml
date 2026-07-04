@@ -26,9 +26,11 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/insurance_claims
       LOG_LEVEL: INFO
-      AUTO_CREATE_TABLES: "true"
     ports:
       - "8000:8000"
+    # Apply database migrations BEFORE starting the API, so the schema always
+    # matches the code. The app itself never creates tables.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 volumes:
   pgdata:

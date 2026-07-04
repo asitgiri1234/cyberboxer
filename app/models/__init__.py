@@ -6,9 +6,8 @@ Aggregates all ORM models and re-exports them for convenient importing:
     from app.models import Customer, Policy, Claim
 
 Importing this package also has an important side effect: it imports every
-model module, which registers each table on `Base.metadata`. `create_tables()`
-in `app.database` relies on this so that `Base.metadata.create_all()` sees the
-full schema.
+model module, which registers each table on `Base.metadata`. Alembic's
+`env.py` relies on this so that autogeneration sees the full schema.
 """
 
 from app.models.claim import Claim

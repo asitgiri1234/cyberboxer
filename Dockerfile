@@ -13,8 +13,10 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the application source.
+# Copy the application source and the Alembic migration setup.
 COPY app ./app
+COPY alembic ./alembic
+COPY alembic.ini .
 
 # The log directory is written at runtime.
 RUN mkdir -p logs

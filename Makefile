@@ -1,7 +1,7 @@
 # Convenience targets for common developer tasks.
 # Usage: `make <target>` (requires GNU make).
 
-.PHONY: help install run test lint docker-up docker-down clean
+.PHONY: help install run test lint migrate makemigration docker-up docker-down clean
 
 help:  ## Show this help.
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-12s %s\n", $$1, $$2}'
@@ -11,6 +11,12 @@ install:  ## Install Python dependencies.
 
 run:  ## Start the API with auto-reload.
 	uvicorn app.main:app --reload
+
+migrate:  ## Apply all pending database migrations.
+	alembic upgrade head
+
+makemigration:  ## Autogenerate a migration from model changes: make makemigration m="message"
+	alembic revision --autogenerate -m "$(m)"
 
 test:  ## Run the test suite.
 	pytest

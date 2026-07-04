@@ -5,6 +5,7 @@ uvicorn[standard]==0.34.0 # ASGI server used to run the FastAPI app
 # --- Data / ORM layer ---
 SQLAlchemy==2.0.36        # SQLAlchemy 2.x ORM & core
 psycopg[binary]==3.2.3    # PostgreSQL driver (psycopg 3)
+alembic==1.18.5           # Database schema migrations
 
 # --- Configuration & validation ---
 pydantic==2.10.4          # Data validation / models

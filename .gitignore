@@ -27,3 +27,6 @@ htmlcov/
 .idea/
 .DS_Store
 Thumbs.db
+
+# --- Local-only notes (never pushed) ---
+*.local.txt
