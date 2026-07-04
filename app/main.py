@@ -17,6 +17,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import settings
+from app.database import create_tables
 from app.routes import health
 from app.utils.logger import setup_logging
 
@@ -34,6 +35,13 @@ async def lifespan(app: FastAPI):
     the natural place to add resource setup/teardown later.
     """
     logger.info("Starting %s v%s", settings.APP_NAME, settings.APP_VERSION)
+
+    # In development, ensure all tables exist. `create_tables` is idempotent
+    # and never drops data. Disable via AUTO_CREATE_TABLES=false in production.
+    if settings.AUTO_CREATE_TABLES:
+        create_tables()
+        logger.info("Database tables ensured (create_all).")
+
     yield
     logger.info("Shutting down %s", settings.APP_NAME)
 

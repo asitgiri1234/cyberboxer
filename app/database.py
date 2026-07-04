@@ -64,3 +64,19 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def create_tables() -> None:
+    """Create all database tables that don't already exist.
+
+    Importing `app.models` registers every model on `Base.metadata` (the
+    import is done here, locally, to avoid a circular import at module load
+    time). `create_all` then issues `CREATE TABLE ... IF NOT EXISTS`-style
+    statements — it is safe to call repeatedly and never drops data.
+
+    This is convenient for development; production schema changes should be
+    managed with a migration tool such as Alembic.
+    """
+    from app import models  # noqa: F401  (side effect: registers models)
+
+    Base.metadata.create_all(bind=engine)

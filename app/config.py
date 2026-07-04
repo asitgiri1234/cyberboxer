@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"          # Default log level for the whole app.
     LOG_FILE: str = "logs/app.log"   # Path (relative to project root) of the log file.
 
+    # --- Development conveniences ---
+    # When True, tables are auto-created on startup (handy in development).
+    # In production this should be False and schema managed via migrations.
+    AUTO_CREATE_TABLES: bool = True
+
     # Load variables from a `.env` file when present. Extra/unknown env vars
     # are ignored so the app does not crash on unrelated environment values.
     model_config = SettingsConfigDict(
