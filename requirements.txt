@@ -14,3 +14,7 @@ python-dotenv==1.0.1      # Loads variables from a .env file
 # --- File upload & CSV preprocessing ---
 pandas==2.2.3             # CSV parsing / cleaning / preprocessing
 python-multipart==0.0.20  # Required by FastAPI to accept multipart/form-data uploads
+
+# --- Testing ---
+pytest==8.3.4             # Test runner
+httpx==0.28.1             # Required by Starlette's TestClient for endpoint tests

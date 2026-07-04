@@ -67,6 +67,37 @@ class ClaimDetail(BaseModel):
     policy: PolicyNested
     customer: CustomerNested
 
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "claim_id": "CL002",
+                "cause": "Flood",
+                "loss_date": "2023-01-20",
+                "claim_date": None,
+                "loss_amount": "50000.00",
+                "payout_amount": "45000.00",
+                "fraud_flag": False,
+                "status": None,
+                "policy": {
+                    "policy_id": "P1002",
+                    "policy_type": None,
+                    "coverage_limit": "150000.00",
+                    "premium_amount": None,
+                    "issue_date": "2021-07-15",
+                    "expiry_date": None,
+                    "status": None,
+                },
+                "customer": {
+                    "customer_id": "C002",
+                    "customer_name": "Alice Johnson",
+                    "city": "San Francisco",
+                    "state": "CA",
+                    "email": None,
+                },
+            }
+        }
+    }
+
 
 class ClaimSummary(BaseModel):
     """Compact claim row returned by the paginated list endpoint."""
@@ -92,3 +123,29 @@ class ClaimListResponse(BaseModel):
     page: int
     page_size: int
     results: list[ClaimSummary]
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "total_records": 4,
+                "page": 1,
+                "page_size": 3,
+                "results": [
+                    {
+                        "claim_id": "CL013",
+                        "cause": "Flood",
+                        "loss_date": "2023-10-10",
+                        "claim_date": None,
+                        "loss_amount": "160000.00",
+                        "payout_amount": "144000.00",
+                        "fraud_flag": False,
+                        "policy_id": "P1002",
+                        "customer_id": "C002",
+                        "customer_name": "Alice Johnson",
+                        "city": "San Francisco",
+                        "state": "CA",
+                    }
+                ],
+            }
+        }
+    }

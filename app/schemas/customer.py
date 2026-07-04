@@ -19,3 +19,15 @@ class TopCustomer(BaseModel):
     total_claims: int
     total_payout: Decimal
     fraud_flag: bool
+
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "customer_id": "C002",
+                "customer_name": "Alice Johnson",
+                "total_claims": 4,
+                "total_payout": "246000.00",
+                "fraud_flag": False,
+            }
+        }
+    }

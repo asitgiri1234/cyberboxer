@@ -5,9 +5,11 @@ Application entry point.
 
 Creates and configures the FastAPI application:
 * sets up logging before anything else runs,
-* configures OpenAPI metadata (title, version, description) which powers the
-  automatic Swagger UI at `/docs` and ReDoc at `/redoc`,
-* mounts the feature routers (currently only `health`).
+* configures OpenAPI metadata (title, version, description, tags) which powers
+  the automatic Swagger UI at `/docs` and ReDoc at `/redoc`,
+* installs middleware (request logging + gzip compression),
+* registers centralised exception handlers,
+* mounts the feature routers.
 
 Run with:  uvicorn app.main:app --reload
 """
@@ -15,8 +17,11 @@ Run with:  uvicorn app.main:app --reload
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.config import settings
+from app.core.exception_handlers import register_exception_handlers
+from app.core.middleware import RequestLoggingMiddleware
 from app.database import create_tables
 from app.routes import claims, customers, health, reports, upload
 from app.utils.logger import setup_logging
@@ -24,6 +29,25 @@ from app.utils.logger import setup_logging
 # Configure logging once, at import time, so every module that grabs a logger
 # afterwards inherits the console + file handlers.
 logger = setup_logging()
+
+# OpenAPI tag descriptions — these group and document endpoints in Swagger.
+TAGS_METADATA = [
+    {"name": "Health", "description": "Liveness/readiness and database connectivity checks."},
+    {"name": "Upload", "description": "Bulk CSV ingestion of customers, policies and claims."},
+    {"name": "Claims", "description": "Retrieve and search claims with filtering, sorting and pagination."},
+    {"name": "Customers", "description": "Customer rankings and aggregates."},
+    {"name": "Reports", "description": "Aggregate and raw-SQL reporting."},
+]
+
+DESCRIPTION = """
+Production-quality REST API for managing insurance **claims**.
+
+**Pipeline:** upload CSVs → clean (Pandas) → validate → apply business rules
+(payout + fraud) → persist (PostgreSQL) → query via read APIs and reports.
+
+* Interactive docs: `/docs` (Swagger) and `/redoc`.
+* All errors share one JSON envelope: `{"success": false, "error": ..., "message": ...}`.
+"""
 
 
 @asynccontextmanager
@@ -51,12 +75,24 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description=settings.APP_DESCRIPTION,
+    description=DESCRIPTION,
+    openapi_tags=TAGS_METADATA,
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
+    contact={"name": "Insurance Claims API"},
+    license_info={"name": "MIT"},
 )
 
+# --- Middleware (outermost is added last) --------------------------------- #
+# GZip compresses larger responses; request logging times & logs every call.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+app.add_middleware(RequestLoggingMiddleware)
+
+# --- Centralised exception handling --------------------------------------- #
+register_exception_handlers(app)
+
+# --- Routers -------------------------------------------------------------- #
 # Register routers. Each domain gets mounted here; keeping this list short and
 # explicit makes it obvious what the API exposes.
 app.include_router(health.router)

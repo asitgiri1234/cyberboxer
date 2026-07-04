@@ -25,6 +25,7 @@ from app.schemas.claim import (
     ClaimSortField,
     SortOrder,
 )
+from app.schemas.common import ErrorResponse
 from app.services import claims_service
 
 router = APIRouter(prefix="/claims", tags=["Claims"])
@@ -34,6 +35,7 @@ router = APIRouter(prefix="/claims", tags=["Claims"])
     "/{claim_id}",
     response_model=ClaimDetail,
     summary="Get a single claim with its policy and customer",
+    responses={404: {"model": ErrorResponse, "description": "Claim not found"}},
 )
 def get_claim(
     claim_id: str = Path(..., description="Business identifier of the claim, e.g. 'CL001'"),
@@ -54,6 +56,7 @@ def get_claim(
     "",
     response_model=ClaimListResponse,
     summary="List claims with filtering, sorting and pagination",
+    responses={400: {"model": ErrorResponse, "description": "Invalid filter range"}},
 )
 def list_claims(
     db: Session = Depends(get_db),
