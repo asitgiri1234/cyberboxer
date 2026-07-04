@@ -49,12 +49,13 @@ class Claim(Base, TimestampMixin):
         nullable=False,
     )
 
-    # Claim attributes.
-    cause: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    loss_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    # Claim attributes. cause / loss_date / payout_amount are indexed because
+    # they back the filter and sort operations of GET /claims.
+    cause: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    loss_date: Mapped[date | None] = mapped_column(Date, index=True, nullable=True)
     claim_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     loss_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    payout_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    payout_amount: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), index=True, nullable=True)
 
     # Fraud indicator; defaults to False so it is always a definite boolean.
     fraud_flag: Mapped[bool] = mapped_column(
