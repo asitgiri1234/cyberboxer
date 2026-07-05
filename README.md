@@ -293,8 +293,15 @@ docker compose up --build      # starts PostgreSQL + the API
 
 The API will be available at <http://localhost:8000>.
 
-## Assumptions
+## Assumptions & design decisions
 
+- **Database:** PostgreSQL is used (the brief allows PostgreSQL or SQLite). To
+  keep it zero-setup for a reviewer, `docker compose up --build` starts Postgres,
+  runs the Alembic migrations, and launches the API together — no manual DB
+  install needed.
+- **Upload response** is a superset of the brief's example: it includes the
+  top-level `total_records` / `inserted` / `rejected`, plus a per-file breakdown
+  and structured `errors` (`{file, row, reason}`) for precise debugging.
 - The sample datasets use a single `name` column and an `age` column; `name` is
   split into `first_name`/`last_name`, and `age` drives the minor rule (it is not
   persisted, as the schema stores `date_of_birth`).

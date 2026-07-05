@@ -14,6 +14,7 @@ Creates and configures the FastAPI application:
 Run with:  uvicorn app.main:app --reload
 """
 
+import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -78,6 +79,9 @@ app = FastAPI(
     contact={"name": "Insurance Claims API"},
     license_info={"name": "MIT"},
 )
+
+# Record process start time so /health can report uptime.
+app.state.started_at = time.time()
 
 # --- Middleware (outermost is added last) --------------------------------- #
 # GZip compresses larger responses; request logging times & logs every call.

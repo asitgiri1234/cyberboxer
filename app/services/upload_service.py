@@ -486,7 +486,12 @@ def process_upload(
         len(errors),
     )
 
+    # Top-level aggregate totals (across all three files) plus the richer
+    # per-entity breakdown and structured per-row errors.
     return {
+        "total_records": customer_summary["total"] + policy_summary["total"] + claim_summary["total"],
+        "inserted": customer_summary["inserted"] + policy_summary["inserted"] + claim_summary["inserted"],
+        "rejected": customer_summary["rejected"] + policy_summary["rejected"] + claim_summary["rejected"],
         "customers": customer_summary,
         "policies": policy_summary,
         "claims": claim_summary,
