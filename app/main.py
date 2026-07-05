@@ -18,11 +18,14 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.middleware import RequestLoggingMiddleware
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.core.security import require_api_key
 from app.routes import claims, customers, health, reports, upload
 from app.utils.logger import setup_logging
@@ -84,6 +87,12 @@ app = FastAPI(
 # Record process start time so /health can report uptime.
 app.state.started_at = time.time()
 
+# --- Rate limiting --------------------------------------------------------- #
+# Attach the limiter and (optionally enforcing) middleware. No-op unless
+# RATE_LIMIT_ENABLED is set.
+app.state.limiter = limiter
+app.add_middleware(SlowAPIMiddleware)
+
 # --- Middleware (outermost is added last) --------------------------------- #
 # GZip compresses larger responses; request logging times & logs every call.
 app.add_middleware(GZipMiddleware, minimum_size=1000)
@@ -91,6 +100,7 @@ app.add_middleware(RequestLoggingMiddleware)
 
 # --- Centralised exception handling --------------------------------------- #
 register_exception_handlers(app)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # --- Routers -------------------------------------------------------------- #
 # Register routers. `/health` is intentionally public (used by probes); the

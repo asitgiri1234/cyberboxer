@@ -48,6 +48,13 @@ class Settings(BaseSettings):
     AUTH_ENABLED: bool = False
     API_KEY: str = "change-me"
 
+    # --- Rate limiting (optional, off by default) ---
+    # When RATE_LIMIT_ENABLED is True, each client IP is limited to RATE_LIMIT
+    # requests (slowapi syntax, e.g. "100/minute"). Disabled by default so
+    # evaluation and test runs are never throttled.
+    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT: str = "100/minute"
+
     # Load variables from a `.env` file when present. Extra/unknown env vars
     # are ignored so the app does not crash on unrelated environment values.
     model_config = SettingsConfigDict(

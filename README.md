@@ -51,6 +51,7 @@ Prefer to run it without Docker? See [Setup](#setup) below.
 - [API endpoints](#api-endpoints)
 - [Business rules](#business-rules-implemented)
 - [Authentication](#authentication)
+- [Rate limiting](#rate-limiting)
 - [Testing](#testing)
 - [Docker](#docker)
 - [Assumptions](#assumptions)
@@ -327,6 +328,23 @@ curl -H "X-API-Key: your-secret-key" http://localhost:8000/reports/state
 
 The scheme is registered in OpenAPI, so Swagger shows an **Authorize** button.
 
+## Rate limiting
+
+Optional per-client (per-IP) rate limiting via `slowapi`, **disabled by default**
+so evaluation and test runs are never throttled. Enable it with:
+
+```bash
+RATE_LIMIT_ENABLED=true
+RATE_LIMIT=100/minute        # slowapi syntax, e.g. "5/second", "1000/hour"
+```
+
+When a client exceeds the limit, the API responds with `429 Too Many Requests`
+using the standard error envelope:
+
+```json
+{ "success": false, "error": "RateLimitExceeded", "message": "Rate limit exceeded. Please slow down and retry." }
+```
+
 ## Testing
 
 ```bash
@@ -381,7 +399,7 @@ The API will be available at <http://localhost:8000>.
 
 ## Future improvements
 
-- Per-client rate limiting; JWT/OAuth2 (an optional API-key scheme is included).
+- JWT/OAuth2 (an optional API-key scheme + per-IP rate limiting are included).
 - Async database access (`asyncpg` + async SQLAlchemy) for higher concurrency.
 - Idempotent/upsert uploads and background processing for very large files.
 - Caching for expensive reports; pagination cursors for large result sets.
