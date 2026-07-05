@@ -18,8 +18,11 @@ migrate:  ## Apply all pending database migrations.
 makemigration:  ## Autogenerate a migration from model changes: make makemigration m="message"
 	alembic revision --autogenerate -m "$(m)"
 
-test:  ## Run the test suite.
+test:  ## Run the unit test suite.
 	pytest
+
+test-integration:  ## Run integration tests (needs TEST_DATABASE_URL set to a Postgres URL).
+	pytest tests/test_integration.py
 
 lint:  ## Report unused imports / undefined names.
 	pyflakes app tests

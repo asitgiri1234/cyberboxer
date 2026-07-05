@@ -305,12 +305,25 @@ non-negative floor → round to cents`.
 ## Testing
 
 ```bash
-pytest
+pytest                     # unit tests (fast, no database)
 ```
 
-Tests run **without a database**: pure logic (business rules, CSV cleaning) is
-tested directly, and endpoints are tested with a mocked session and monkeypatched
-services, so the suite is fast and hermetic.
+**Unit tests** run **without a database**: pure logic (business rules, CSV
+cleaning) is tested directly, and endpoints are tested with a mocked session and
+monkeypatched services, so the suite is fast and hermetic.
+
+**Integration tests** (`tests/test_integration.py`) exercise the whole stack —
+upload, ORM writes, joins, aggregates and the raw-SQL reports — against a real
+PostgreSQL database. They are opt-in: point `TEST_DATABASE_URL` at a throwaway
+database and they run; otherwise they are skipped (so a plain `pytest` stays
+green anywhere).
+
+```bash
+# create a throwaway DB first, e.g. insurance_claims_test, then:
+# PowerShell
+$env:TEST_DATABASE_URL = "postgresql+psycopg://postgres:pass@localhost:5432/insurance_claims_test"
+pytest tests/test_integration.py
+```
 
 ## Docker
 
