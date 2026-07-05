@@ -10,6 +10,33 @@ persists the results, and exposes read APIs and reports.
 
 ---
 
+## Quick start (Docker)
+
+The fastest way to run the whole stack (PostgreSQL + API + migrations) with no
+local database setup:
+
+```bash
+docker compose up --build
+```
+
+This starts PostgreSQL, applies the Alembic migrations, and launches the API.
+Then open the interactive docs and load the sample data:
+
+- Swagger UI: <http://localhost:8000/docs>
+- Health: <http://localhost:8000/health>
+
+```bash
+# load the provided sample datasets
+curl -X POST http://localhost:8000/upload \
+  -F "customer=@data/customer.csv;type=text/csv" \
+  -F "policy=@data/policy.csv;type=text/csv" \
+  -F "claims=@data/claims.csv;type=text/csv"
+```
+
+Prefer to run it without Docker? See [Setup](#setup) below.
+
+---
+
 ## Table of contents
 
 - [Features](#features)
