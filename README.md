@@ -52,6 +52,7 @@ Prefer to run it without Docker? See [Setup](#setup) below.
 - [Business rules](#business-rules-implemented)
 - [Authentication](#authentication)
 - [Rate limiting](#rate-limiting)
+- [Background tasks](#background-tasks)
 - [Caching](#caching)
 - [Testing](#testing)
 - [Docker](#docker)
@@ -270,7 +271,9 @@ alembic history --verbose     # full migration history
 | Method | Path                        | Description                                        |
 |--------|-----------------------------|----------------------------------------------------|
 | GET    | `/health`                   | Service + database health check                    |
-| POST   | `/upload`                   | Upload the three CSV files                          |
+| POST   | `/upload`                   | Upload the three CSV files (synchronous)            |
+| POST   | `/upload/async`             | Upload as a background job (returns 202 + job id)   |
+| GET    | `/upload/jobs/{job_id}`     | Poll a background upload job's outcome              |
 | GET    | `/claims/{claim_id}`        | Single claim with policy, customer, payout, fraud  |
 | GET    | `/claims`                   | Filter / sort / paginate claims                    |
 | GET    | `/customers/top?n=10`       | Customers ranked by total payout                   |
@@ -346,6 +349,27 @@ using the standard error envelope:
 { "success": false, "error": "RateLimitExceeded", "message": "Rate limit exceeded. Please slow down and retry." }
 ```
 
+## Background tasks
+
+For large files, the upload can run as a **background job** instead of blocking
+the request:
+
+```bash
+curl -X POST http://localhost:8000/upload/async \
+  -F "customer=@data/customer.csv;type=text/csv" \
+  -F "policy=@data/policy.csv;type=text/csv" \
+  -F "claims=@data/claims.csv;type=text/csv"
+# -> 202 {"job_id": "...", "status": "pending", "status_url": "/upload/jobs/..."}
+
+curl http://localhost:8000/upload/jobs/<job_id>
+# -> {"status": "completed", "summary": { ... }}  (or "failed" with an error)
+```
+
+The job runs the **same pipeline** as `POST /upload` (no duplicated logic) with
+its own database session, via FastAPI's `BackgroundTasks`. Job state lives in a
+small in-process registry (`app/core/jobs.py`) that could be swapped for
+Redis/Celery for multi-worker deployments.
+
 ## Caching
 
 Optional in-process TTL caching for the expensive report aggregates
@@ -418,6 +442,7 @@ The API will be available at <http://localhost:8000>.
 
 - JWT/OAuth2 (an optional API-key scheme + per-IP rate limiting are included).
 - Async database access (`asyncpg` + async SQLAlchemy) for higher concurrency.
-- Idempotent/upsert uploads and background processing for very large files.
+- Idempotent/upsert uploads; move background jobs to Celery/Redis for
+  multi-worker deployments (an in-process background upload is included).
 - Redis-backed caching (an in-process TTL cache is included); pagination cursors
   for large result sets.
