@@ -50,6 +50,7 @@ Prefer to run it without Docker? See [Setup](#setup) below.
 - [Database Migrations](#database-migrations)
 - [API endpoints](#api-endpoints)
 - [Business rules](#business-rules-implemented)
+- [Authentication](#authentication)
 - [Testing](#testing)
 - [Docker](#docker)
 - [Assumptions](#assumptions)
@@ -302,6 +303,30 @@ All errors share one envelope:
 Payout order: `loss → minor rule → CA-flood deductible → coverage cap →
 non-negative floor → round to cents`.
 
+## Authentication
+
+Optional API-key authentication, **disabled by default** (so the API is easy to
+evaluate). Enable it by setting two environment variables:
+
+```bash
+AUTH_ENABLED=true
+API_KEY=your-secret-key
+```
+
+When enabled, the data endpoints (`/upload`, `/claims`, `/customers`,
+`/reports`) require the header `X-API-Key: your-secret-key`. `/health` and the
+docs stay public. Responses:
+
+- missing header → `401 Unauthorized`
+- wrong key → `403 Forbidden`
+- correct key → normal response
+
+```bash
+curl -H "X-API-Key: your-secret-key" http://localhost:8000/reports/state
+```
+
+The scheme is registered in OpenAPI, so Swagger shows an **Authorize** button.
+
 ## Testing
 
 ```bash
@@ -356,7 +381,7 @@ The API will be available at <http://localhost:8000>.
 
 ## Future improvements
 
-- Authentication (JWT / API key) and per-client rate limiting.
+- Per-client rate limiting; JWT/OAuth2 (an optional API-key scheme is included).
 - Async database access (`asyncpg` + async SQLAlchemy) for higher concurrency.
 - Idempotent/upsert uploads and background processing for very large files.
 - Caching for expensive reports; pagination cursors for large result sets.

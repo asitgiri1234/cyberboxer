@@ -17,12 +17,13 @@ Run with:  uvicorn app.main:app --reload
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from starlette.middleware.gzip import GZipMiddleware
 
 from app.config import settings
 from app.core.exception_handlers import register_exception_handlers
 from app.core.middleware import RequestLoggingMiddleware
+from app.core.security import require_api_key
 from app.routes import claims, customers, health, reports, upload
 from app.utils.logger import setup_logging
 
@@ -92,10 +93,13 @@ app.add_middleware(RequestLoggingMiddleware)
 register_exception_handlers(app)
 
 # --- Routers -------------------------------------------------------------- #
-# Register routers. Each domain gets mounted here; keeping this list short and
-# explicit makes it obvious what the API exposes.
+# Register routers. `/health` is intentionally public (used by probes); the
+# data endpoints are protected by the optional API-key dependency, which is a
+# no-op unless AUTH_ENABLED is set.
+_protected = [Depends(require_api_key)]
+
 app.include_router(health.router)
-app.include_router(upload.router)
-app.include_router(claims.router)
-app.include_router(customers.router)
-app.include_router(reports.router)
+app.include_router(upload.router, dependencies=_protected)
+app.include_router(claims.router, dependencies=_protected)
+app.include_router(customers.router, dependencies=_protected)
+app.include_router(reports.router, dependencies=_protected)

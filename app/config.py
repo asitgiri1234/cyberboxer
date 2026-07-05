@@ -41,6 +41,13 @@ class Settings(BaseSettings):
     # (`alembic upgrade head`), so the application no longer creates tables on
     # startup.
 
+    # --- Authentication (optional, off by default) ---
+    # When AUTH_ENABLED is True, data endpoints require the `X-API-Key` header
+    # to match API_KEY. Health and docs remain public. Disabled by default so
+    # the API is easy to evaluate; enable it in production.
+    AUTH_ENABLED: bool = False
+    API_KEY: str = "change-me"
+
     # Load variables from a `.env` file when present. Extra/unknown env vars
     # are ignored so the app does not crash on unrelated environment values.
     model_config = SettingsConfigDict(
