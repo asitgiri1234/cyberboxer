@@ -15,9 +15,11 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.cache import cached
 from app.models import Claim, Customer, Policy
 
 
+@cached("top_customers")
 def get_top_customers(db: Session, limit: int = 10) -> list[dict[str, Any]]:
     """Return customers ranked by total payout (descending).
 

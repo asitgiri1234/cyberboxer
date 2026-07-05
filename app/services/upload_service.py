@@ -29,6 +29,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.core import cache
 from app.models import Claim, Customer, Policy
 from app.services import business_rules, csv_cleaner
 from app.services.data_validator import (
@@ -485,6 +486,9 @@ def process_upload(
         claim_summary["inserted"], claim_summary["total"],
         len(errors),
     )
+
+    # New data invalidates any cached report aggregates.
+    cache.invalidate()
 
     # Top-level aggregate totals (across all three files) plus the richer
     # per-entity breakdown and structured per-row errors.

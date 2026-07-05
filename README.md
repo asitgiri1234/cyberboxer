@@ -52,6 +52,7 @@ Prefer to run it without Docker? See [Setup](#setup) below.
 - [Business rules](#business-rules-implemented)
 - [Authentication](#authentication)
 - [Rate limiting](#rate-limiting)
+- [Caching](#caching)
 - [Testing](#testing)
 - [Docker](#docker)
 - [Assumptions](#assumptions)
@@ -345,6 +346,22 @@ using the standard error envelope:
 { "success": false, "error": "RateLimitExceeded", "message": "Rate limit exceeded. Please slow down and retry." }
 ```
 
+## Caching
+
+Optional in-process TTL caching for the expensive report aggregates
+(`/reports/*`, `/customers/top`), **disabled by default** so evaluators always
+see live data. Enable it with:
+
+```bash
+CACHE_ENABLED=true
+CACHE_TTL_SECONDS=60
+```
+
+Entries expire after the TTL and the whole cache is **invalidated automatically
+after every upload**, so reports never serve stale aggregates. The cache is a
+small dependency-free module (`app/core/cache.py`) that could be swapped for
+Redis without touching the services.
+
 ## Testing
 
 ```bash
@@ -402,4 +419,5 @@ The API will be available at <http://localhost:8000>.
 - JWT/OAuth2 (an optional API-key scheme + per-IP rate limiting are included).
 - Async database access (`asyncpg` + async SQLAlchemy) for higher concurrency.
 - Idempotent/upsert uploads and background processing for very large files.
-- Caching for expensive reports; pagination cursors for large result sets.
+- Redis-backed caching (an in-process TTL cache is included); pagination cursors
+  for large result sets.

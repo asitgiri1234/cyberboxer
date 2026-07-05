@@ -55,6 +55,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_ENABLED: bool = False
     RATE_LIMIT: str = "100/minute"
 
+    # --- Response caching (optional, off by default) ---
+    # When CACHE_ENABLED is True, expensive report queries are cached in-process
+    # for CACHE_TTL_SECONDS and invalidated automatically after every upload.
+    # Disabled by default so evaluators always see live data.
+    CACHE_ENABLED: bool = False
+    CACHE_TTL_SECONDS: int = 60
+
     # Load variables from a `.env` file when present. Extra/unknown env vars
     # are ignored so the app does not crash on unrelated environment values.
     model_config = SettingsConfigDict(

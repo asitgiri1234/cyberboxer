@@ -19,9 +19,11 @@ from typing import Any
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
+from app.core.cache import cached
 from app.models import Claim, Customer, Policy
 
 
+@cached("state_report")
 def get_state_report(db: Session) -> list[dict[str, Any]]:
     """Aggregate claim metrics grouped by customer state (ORM aggregate).
 
@@ -79,12 +81,14 @@ _AVG_BY_CAUSE_SQL = text(
 )
 
 
+@cached("top_cities")
 def get_top_cities_by_payout(db: Session, limit: int = 10) -> list[dict[str, Any]]:
     """RAW SQL report: cities ranked by total payout (descending)."""
     rows = db.execute(_TOP_CITIES_SQL, {"limit": limit}).mappings().all()
     return [dict(row) for row in rows]
 
 
+@cached("avg_by_cause")
 def get_average_payout_by_cause(db: Session) -> list[dict[str, Any]]:
     """RAW SQL report: average payout grouped by claim cause (descending)."""
     rows = db.execute(_AVG_BY_CAUSE_SQL).mappings().all()
